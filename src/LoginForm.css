@@ -1,0 +1,447 @@
+/*Updated*/
+
+.App {
+  text-align: center;
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.login-container {
+  max-width: 350px;
+  padding: 35px;
+  max-height: 350px;
+  border-radius: 30px;
+  background-color: #fceef1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5);
+  margin: 70px 10px;
+  margin-top: 150px;
+}
+
+.login-container input {
+  width: 100%;
+  padding: 8px;
+  margin: 10px 0px;
+  font-family: "Times New Roman", Times, serif;
+  align-items: flex;
+}
+
+button {
+  background-color: #661a00;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-top: 15px;
+  width: 100%;
+  align-items: center;
+}
+
+button:hover {
+  background-color: #a23500;
+}
+.main-layout{
+  background: linear-gradient(to bottom, #752738 0%, #808080 100%);
+  Background-size: Cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  min-height: 100vh;
+
+}
+input,
+.studentID,
+.password {
+  font-family: "Times New Roman", Times, serif;
+  text-align: center;
+}
+
+input {
+  width: 100%;
+  padding: 8px;
+  margin: 10px -10px;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom, #800000 0%, #808080 100%);
+  height: 80px;
+  padding: 0 20px;
+  gap: 20px;
+  border-bottom: 2px solid #d8bb65;
+  flex-wrap: wrap;
+}
+
+.ubTitle {
+  color: #d8bb65;
+  font-size: 22px;
+  font-family: "Times New Roman", Times, serif;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+  flex: 1;
+}
+
+.logo {
+  height: 75px;
+  width: 75px;
+  z-index: 1;
+  padding: 10px;
+}
+
+.logo2 {
+  height: 60px;
+  width: auto;
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+.main-layout {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.left-box {
+  width: 25%;
+  margin-top: 40px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 100px;
+  border-radius: 10px;
+  
+}
+
+.left-box .card-shadow {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 60px;
+  text-align: center;
+  margin: auto;
+}
+
+.left-box .card-shadow a {
+  text-decoration: none;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 18px;
+  color: #661a00;
+  display: block;
+  padding: 10px 0;
+}
+
+.left-box .card-shadow a:hover {
+  color: #d8bb65;
+}
+
+.card-shadow {
+  width: 250px;
+  height: 120px;
+  background-color: #fceef1; /* Light pink */
+  border-radius: 16px;
+  box-shadow: 20px 20px 20px rgba(0, 0, 0, 0.5); /* Soft shadow */
+  font-family: 'Times New Roman', Times, serif;
+  align-items: center;
+}
+
+.right-box {
+  width: 25%;
+  margin-top: 40px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 10px;
+  
+}
+
+.inbox1,
+.inbox2,
+h3 {
+  text-align: center;
+}
+
+.inbox1,
+.inbox2,
+p {
+  text-align: justify;
+}
+
+.inbox1,
+.inbox2 {
+  background-color: #fceef1;
+  border-radius: 10px;
+  padding: 10px; /* Increase top & bottom padding */
+  margin-bottom: 10px;
+  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  height: auto;
+  overflow-wrap: break-word;
+}
+
+.card {
+  
+  
+  
+  padding: 20px;
+  width: 300px;
+
+}
+
+.card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.card-link:hover .card-shadow {
+  background-color: #9b5564;
+  cursor: pointer;
+}
+
+.card {
+  transition: background-color 1s ease;
+}
+
+@media (max-width: 1024px) {
+  .main-layout {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  
+
+  .left-box,
+  .right-box,
+  .login-container {
+    width: 90%;
+    margin-bottom: 20px;
+  }
+
+  .left-box {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    gap: 20px;
+    
+  }
+
+  .left-box .card-shadow {
+    width: 45%;
+    padding: 20px;
+  }
+
+  .right-box {
+    align-items: stretch;
+    
+  }
+}
+
+@media (max-width: 768px) {
+  .ubTitle {
+    font-size: 20px;
+    text-align: center;
+  }
+
+  .logo,
+  .logo2 {
+    width: 60px;
+    height: 60px;
+  }
+
+  .left-box .card-shadow {
+    width: 100%;
+  }
+
+  .login-container,
+  .right-box,
+  .left-box {
+    width: 100%;
+  }
+
+  .studentID input,
+  .password input {
+    padding: 6px;
+    font-size: 14px;
+  }
+
+  .navbar {
+    flex-direction: column;
+    height: auto;
+    padding: 10px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .ubTitle {
+    font-size: 16px;
+  }
+
+  .logo,
+  .logo2 {
+    width: 50px;
+    height: 50px;
+  }
+
+  .left-box {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .left-box .card-shadow,
+  .login-container,
+  .right-box {
+    width: 100%;
+  }
+
+  .card {
+    width: 100%;
+    padding: 15px;
+  }
+
+  .studentID input,
+  .password input {
+    font-size: 12px;
+    padding: 5px;
+  }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .main-layout {
+    flex-direction: column;
+    Background-size: Cover;
+  }
+
+  .login-container {
+    order: 1;
+  }
+
+  .left-box {
+    order: 2;
+  }
+
+  .right-box {
+    order: 3;
+  }
+}
+
+@media (min-width: 1920px) {
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .main-layout {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: stretch;
+    gap: 40px;
+    padding: 40px;
+    max-width: 1800px;
+    max-height: 1800px;
+    margin: 0 auto;
+  }
+
+  .left-box,
+  .right-box,
+  .login-container {
+    height: 100%;
+    width: 30%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 0;
+  }
+
+  .left-box {
+    gap: 30px;
+  }
+
+  .left-box .card-shadow {
+    width: 100%;
+    padding: 30px;
+    flex-grow: 1;
+  }
+
+  .right-box {
+    align-items: flex-start;
+  }
+
+  .login-container {
+    padding: 40px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    justify-content: center;
+  }
+
+  .ubTitle {
+    font-size: 32px;
+  }
+
+  .logo,
+  .logo2 {
+    width: 100px;
+    height: 100px;
+  }
+
+  .studentID input,
+  .password input {
+    padding: 12px;
+    font-size: 18px;
+  }
+
+  button {
+    width: auto;
+    padding: 12px 24px;
+    font-size: 16px;
+  }
+}
+.LoginForm-footer {
+  text-align: center;
+  padding: 15px;
+  background-color: #771100;
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+  border-top: 1px solid #d8bb65;
+  margin-top: 0px;
+  background: linear-gradient(to bottom, #800000 0%, #808080 100%);
+}
