@@ -38,6 +38,9 @@ npm install bootstrap
 
 # inside where server.js is located install the Following:
 npm init -y
+
 npm install express cors body-parser
+
 npm install axios
+
 npm install mysql12
