@@ -5,7 +5,7 @@
 # Second Open http://localhost/phpmyadmin/
 # Third Create a Database name it student_portal
 # Fourth Add this Code to the SQL TAB
-  -> CREATE TABLE students (
+  CREATE TABLE students (
   id VARCHAR(20) PRIMARY KEY,
   name VARCHAR(100),
   password VARCHAR(100)
