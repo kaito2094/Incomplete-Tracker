@@ -16,29 +16,20 @@ function ProfessorDashboard({ setAuth }) {
 
   useEffect(() => {
     fetch("http://localhost:5000/api/students")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch students");
-        return res.json();
-      })
-      .then((data) => setStudents(data))
-      .catch((err) => alert(err.message));
+      .then((res) => res.json())
+      .then(setStudents)
+      .catch(() => alert("Failed to fetch students"));
 
     fetch("http://localhost:5000/api/concerns")
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch concerns");
-        return res.json();
-      })
-      .then((data) => setConcerns(data))
+      .then((res) => res.json())
+      .then(setConcerns)
       .catch(() => alert("Failed to load concerns"));
   }, []);
 
   useEffect(() => {
     if (selectedStudentId) {
       fetch(`http://localhost:5000/api/student/${selectedStudentId}`)
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to fetch student data");
-          return res.json();
-        })
+        .then((res) => res.json())
         .then((data) => {
           setFormData({ ...data, password: data.id });
           setNewTasks({});
@@ -59,6 +50,12 @@ function ProfessorDashboard({ setAuth }) {
     setNewSubject("");
   };
 
+  const handleRemoveSubject = (subject) => {
+    const updatedSubjects = { ...formData.subjects };
+    delete updatedSubjects[subject];
+    setFormData((prev) => ({ ...prev, subjects: updatedSubjects }));
+  };
+
   const handleNewTaskChange = (subject, field, value) => {
     setNewTasks((prev) => ({
       ...prev,
@@ -69,102 +66,74 @@ function ProfessorDashboard({ setAuth }) {
   const handleAddTask = (subject) => {
     const task = newTasks[subject];
     if (!task || !task.name.trim() || !task.status) return;
-
     const newTask = { name: task.name.trim(), status: task.status };
 
-    setFormData((prev) => {
-      const updated = { ...prev };
-      updated.subjects[subject] = [...(updated.subjects[subject] || []), newTask];
-      return updated;
-    });
-
+    setFormData((prev) => ({
+      ...prev,
+      subjects: {
+        ...prev.subjects,
+        [subject]: [...(prev.subjects[subject] || []), newTask],
+      },
+    }));
     setNewTasks((prev) => ({ ...prev, [subject]: { name: "", status: "" } }));
   };
 
   const handleTaskEdit = (subject, index, field, value) => {
-    setFormData((prev) => {
-      const updatedTasks = [...(prev.subjects[subject] || [])];
-      updatedTasks[index] = { ...updatedTasks[index], [field]: value };
-      return {
-        ...prev,
-        subjects: {
-          ...prev.subjects,
-          [subject]: updatedTasks,
-        },
-      };
-    });
+    const updatedTasks = [...formData.subjects[subject]];
+    updatedTasks[index][field] = value;
+    setFormData((prev) => ({
+      ...prev,
+      subjects: { ...prev.subjects, [subject]: updatedTasks },
+    }));
   };
 
   const handleRemoveTask = (subject, index) => {
-    setFormData((prev) => {
-      const updated = { ...prev };
-      updated.subjects[subject] = updated.subjects[subject].filter((_, i) => i !== index);
-      return updated;
-    });
+    const updatedTasks = formData.subjects[subject].filter((_, i) => i !== index);
+    setFormData((prev) => ({
+      ...prev,
+      subjects: { ...prev.subjects, [subject]: updatedTasks },
+    }));
   };
 
   const handleSave = () => {
-    if (!formData.id || !formData.name) {
-      alert("Student ID and Name are required.");
-      return;
-    }
-    if (formData.password !== formData.id) {
-      alert("Password must match Student ID.");
-      return;
-    }
+    if (!formData.id || !formData.name) return alert("Student ID and Name required.");
+    if (formData.password !== formData.id) return alert("Password must match ID.");
 
     fetch("http://localhost:5000/api/student", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to save student data");
-        return res.json();
-      })
+      .then((res) => res.json())
       .then(() => {
-        alert("Student data saved!");
+        alert("Student saved!");
         return fetch("http://localhost:5000/api/students");
       })
       .then((res) => res.json())
-      .then((data) => setStudents(data))
+      .then(setStudents)
       .catch((err) => alert(err.message));
   };
 
   const handleDelete = () => {
-    if (!formData.id) {
-      alert("No student selected to delete.");
-      return;
-    }
-    if (window.confirm(`Are you sure you want to delete student ${formData.id}?`)) {
-      fetch(`http://localhost:5000/api/student/${formData.id}`, {
-        method: "DELETE",
+    if (!formData.id) return alert("No student selected.");
+    if (!window.confirm(`Delete student ${formData.id}?`)) return;
+
+    fetch(`http://localhost:5000/api/student/${formData.id}`, { method: "DELETE" })
+      .then((res) => res.json())
+      .then(() => {
+        setStudents((prev) => prev.filter((s) => s.id !== formData.id));
+        setSelectedStudentId("");
+        alert("Student deleted.");
       })
-        .then((res) => {
-          if (!res.ok) throw new Error("Failed to delete student");
-          return res.json();
-        })
-        .then(() => {
-          setStudents((prev) => prev.filter((s) => s.id !== formData.id));
-          setSelectedStudentId("");
-          alert("Student deleted successfully");
-        })
-        .catch((err) => alert(err.message));
-    }
+      .catch((err) => alert(err.message));
   };
 
-  const handleLogout = () => {
-    setAuth(null);
-  };
+  const handleLogout = () => setAuth(null);
 
   const handleDeleteConcern = (id) => {
     if (!window.confirm("Delete this concern?")) return;
-
     fetch(`http://localhost:5000/api/concern/${id}`, { method: "DELETE" })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to delete concern");
-        return res.json();
-      })
+      .then((res) => res.json())
       .then(() => {
         setConcerns((prev) => prev.filter((c) => c.id !== id));
         alert("Concern deleted.");
@@ -175,225 +144,144 @@ function ProfessorDashboard({ setAuth }) {
   return (
     <div className="prof-dashboard-root">
       <div className="navbardashboard">
-         <img src="CPESS.png" alt="Logo" className="logo3" />
+        <img src="CPESS.png" alt="Logo" className="logo3" />
         <h1>Professor Dashboard</h1>
         <button className="logout-btn" onClick={handleLogout}>Logout</button>
       </div>
 
       <div className="dashboard-content">
         <div className="left-box-dashboard">
-          <div className="left-box-header">
-            <h2>Add Student</h2>
-          </div>
-          <div className="left-box-content">
-            <label htmlFor="student-select">Select Student:</label>
-            <select
-              id="student-select"
-              value={selectedStudentId}
-              onChange={(e) => setSelectedStudentId(e.target.value)}
-            >
-              <option value="">-- Select Student --</option>
-              {students.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.id} - {s.name}
-                </option>
-              ))}
-            </select>
+          <h2>Add Student</h2>
+          <label>Select Student:</label>
+          <select value={selectedStudentId} onChange={(e) => setSelectedStudentId(e.target.value)}>
+            <option value="">-- Select Student --</option>
+            {students.map((s) => (
+              <option key={s.id} value={s.id}>{s.id} - {s.name}</option>
+            ))}
+          </select>
 
-            <input
-              placeholder="Student ID"
-              value={formData.id}
-              onChange={(e) => {
-                const idValue = e.target.value;
-                setFormData((prev) => ({
-                  ...prev,
-                  id: idValue,
-                  password: idValue,
-                }));
-              }}
-              style={{ marginTop: "10px" }}
-            />
-            <input
-              placeholder="Student Name"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              style={{ marginTop: "10px" }}
-            />
-            <input
-              placeholder="Password"
-              type="text"
-              value={formData.password}
-              disabled
-              style={{ marginTop: "10px" }}
-            />
-            <button
-              onClick={handleSave}
-              style={{
-                marginTop: "10px",
-                backgroundColor: "#771100",
-                color: "white",
-                border: "none",
-                padding: "8px",
-                borderRadius: "6px",
-                cursor: "pointer",
-              }}
-            >
-              💾 Save Student
-            </button>
-            <button
-              onClick={handleDelete}
-              style={{
-                marginTop: "10px",
-                backgroundColor: "#b52b27",
-                color: "white",
-                border: "none",
-                padding: "8px",
-                borderRadius: "6px",
-                cursor: "pointer",
-              }}
-            >
-              🗑️ Delete Student
-            </button>
-          </div>
+          <input
+            placeholder="Student ID"
+            value={formData.id}
+            onChange={(e) => setFormData({ ...formData, id: e.target.value, password: e.target.value })}
+          />
+          <input
+            placeholder="Student Name"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
+          <input placeholder="Password" value={formData.password} disabled />
+
+          <button onClick={handleSave}>💾 Save Student</button>
+          <button onClick={handleDelete}>🗑️ Delete Student</button>
         </div>
 
         <div className="center-box-dashboard">
-          <div className="center-box-header">
-            <h2>Add Activity</h2>
-          </div>
-          <div className="center-box-content">
-            {Object.entries(formData.subjects).length === 0 && (
-              <p>No subjects added yet. Add a subject first.</p>
-            )}
-            {Object.entries(formData.subjects).map(([subject, tasks]) => (
-              <div className="prof-subject-container" key={subject}>
+          <h2>Add Activity</h2>
+          {Object.entries(formData.subjects).length === 0 && <p>No subjects added yet.</p>}
+          {Object.entries(formData.subjects).map(([subject, tasks]) => (
+            <div key={subject} className="prof-subject-container">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <h4>{subject}</h4>
-                {tasks.map((task, idx) => (
-                  <div
-                    key={idx}
-                    className="prof-task-container"
-                    style={{ marginBottom: "8px" }}
-                  >
-                    <input
-                      type="text"
-                      value={task.name}
-                      onChange={(e) =>
-                        handleTaskEdit(subject, idx, "name", e.target.value)
-                      }
-                      style={{ width: "60%" }}
-                    />
-                    <select
-                      value={task.status}
-                      onChange={(e) =>
-                        handleTaskEdit(subject, idx, "status", e.target.value)
-                      }
-                      style={{ width: "30%", marginLeft: "10px" }}
-                    >
-                      <option value="">Select status</option>
-                      <option value="Completed">Completed</option>
-                      <option value="Incomplete">Incomplete</option>
-                      <option value="Pending">Pending</option>
-                    </select>
-                    <button
-                      onClick={() => handleRemoveTask(subject, idx)}
-                      style={{ marginLeft: "10px", cursor: "pointer" }}
-                    >
-                      ❌
-                    </button>
-                  </div>
-                ))}
-                <div style={{ marginTop: "10px" }}>
+              </div>
+
+              {tasks.map((task, idx) => (
+                <div
+                  key={idx}
+                  style={{ display: "flex", marginBottom: "8px", alignItems: "center" }}
+                >
                   <input
-                    type="text"
-                    placeholder="New task name"
-                    value={newTasks[subject]?.name || ""}
-                    onChange={(e) =>
-                      handleNewTaskChange(subject, "name", e.target.value)
-                    }
+                    value={task.name}
+                    onChange={(e) => handleTaskEdit(subject, idx, "name", e.target.value)}
                     style={{ width: "60%" }}
                   />
                   <select
-                    value={newTasks[subject]?.status || ""}
-                    onChange={(e) =>
-                      handleNewTaskChange(subject, "status", e.target.value)
-                    }
-                    style={{ width: "30%", marginLeft: "10px" }}
+                    value={task.status}
+                    onChange={(e) => handleTaskEdit(subject, idx, "status", e.target.value)}
+                    style={{ marginLeft: "20px", width: "160px", marginRight: "20px" }}
                   >
-                    <option value="">Select status</option>
+                    <option value="">Status</option>
                     <option value="Completed">Completed</option>
                     <option value="Incomplete">Incomplete</option>
                     <option value="Pending">Pending</option>
                   </select>
                   <button
-                    onClick={() => handleAddTask(subject)}
-                    style={{ marginLeft: "10px" }}
+                    onClick={() => handleRemoveTask(subject, idx)}
+                    style={{
+                      marginLeft: "10px",
+                      padding: "4px 8px",
+                      fontSize: "12px",
+                      backgroundColor: "#e74c3c",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "3px",
+                      cursor: "pointer",
+                    }}
+                    title="Remove Task"
                   >
-                    ➕
+                    Remove
                   </button>
                 </div>
+              ))}
+
+              <div>
+                <input
+                  placeholder="New task name"
+                  value={newTasks[subject]?.name || ""}
+                  onChange={(e) => handleNewTaskChange(subject, "name", e.target.value)}
+                  style={{ width: "60%" }}
+                />
+                <select
+                  value={newTasks[subject]?.status || ""}
+                  onChange={(e) => handleNewTaskChange(subject, "status", e.target.value)}
+                  style={{ marginLeft: "10px", width: "30%" }}
+                >
+                  <option value="">Status</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Incomplete">Incomplete</option>
+                  <option value="Pending">Pending</option>
+                </select>
+                <button onClick={() => handleAddTask(subject)} style={{ marginLeft: "10px" }}>
+                  Add Activity
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
 
         <div className="right-box-dashboard">
-          <div className="right-box-header">
-            <h2>Add Subject</h2>
-          </div>
-          <div className="right-box-content">
-            <input
-              placeholder="New Subject Name"
-              value={newSubject}
-              onChange={(e) => setNewSubject(e.target.value)}
-            />
-            <button
-              onClick={handleAddSubject}
-              style={{ marginTop: "10px", cursor: "pointer" }}
-            >
-              Add Subject
-            </button>
+          <h2>Add Subject</h2>
+          <input placeholder="New Subject Name" value={newSubject} onChange={(e) => setNewSubject(e.target.value)} />
+          <button onClick={handleAddSubject} style={{ marginTop: "10px" }}>Add Subject</button>
 
-            {/* Student Concerns Section */}
-            <div className="professor-concerns" style={{ marginTop: "20px" }}>
-              <h3>Student Concerns</h3>
-              {concerns.length === 0 ? (
-                <p>No concerns submitted.</p>
-              ) : (
-                <ul style={{ listStyle: "none", padding: 0 }}>
-                  {concerns.map((concern) => (
-                    <li
-                      key={concern.id}
+          <div className="professor-concerns" style={{ marginTop: "20px" }}>
+            <h3>Student Concerns</h3>
+            {concerns.length === 0 ? (
+              <p>No concerns submitted.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0 }}>
+                {concerns.map((c) => (
+                  <li key={c.id} style={{ backgroundColor: "#fff5f5", padding: "10px", marginBottom: "10px" }}>
+                    <strong>{c.student_id} - {c.name}</strong>: {c.concern}
+                    <br />
+                    <button
+                      onClick={() => handleDeleteConcern(c.id)}
                       style={{
-                        backgroundColor: "#fff5f5",
-                        padding: "10px",
-                        borderRadius: "6px",
-                        marginBottom: "10px",
+                        marginTop: "5px",
+                        backgroundColor: "#b52b27",
+                        color: "white",
+                        border: "none",
+                        padding: "4px 8px",
+                        cursor: "pointer",
+                        borderRadius: "3px",
                       }}
                     >
-                      <strong>
-                        {concern.student_id} - {concern.name}
-                      </strong>
-                      : {concern.concern}
-                      <br />
-                      <button
-                        onClick={() => handleDeleteConcern(concern.id)}
-                        style={{
-                          marginTop: "5px",
-                          backgroundColor: "#b52b27",
-                          color: "white",
-                          border: "none",
-                          borderRadius: "4px",
-                          padding: "4px 8px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Delete
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                      Delete
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       </div>
