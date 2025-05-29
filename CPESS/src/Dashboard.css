@@ -235,6 +235,12 @@ h1{
   max-height: 500px;
   display: flex;
   flex-direction: column;
+
+  max-height: 500px; /* or whatever height fits your layout */
+  overflow-y: auto;
+  padding-right: 10px; /* prevent content cut-off by scrollbar */
+
+
 }
 
 .right-box-dashboard {
