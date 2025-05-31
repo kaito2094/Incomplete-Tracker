@@ -1,0 +1,46 @@
+/* Custom navbar */
+h2 {
+  color: #003366;
+  font-weight: bold;
+}
+
+/* Card styles */
+.card {
+  min-height: 400px; /* Adjust this value as needed */
+}
+
+
+/* Form controls spacing */
+input.form-control,
+select.form-select {
+  font-size: 14px;
+}
+
+/* Footer styling */
+footer {
+  background-color: #f8f9fa;
+  font-size: 14px;
+}
+
+.navbar-custom {
+  background: linear-gradient(to bottom, #752738 0%, #808080 100%);
+  color: white;
+}
+
+.btn-logout-small {
+  padding: 0.25rem 0.5rem !important;
+  font-size: 0.75rem !important;
+  height: 30px !important;
+  min-width: 20px;
+  flex-grow: 0 !important;
+  max-width: 80px !important;
+  white-space: nowrap;
+  position: relative;
+  top: 10px; /* move down 4px */
+}
+
+.pagination-btn {
+  width: 100px;       /* Fixed width */
+  min-width: 100px;   /* Ensure minimum width */
+  text-align: center; /* Center the text */
+}
