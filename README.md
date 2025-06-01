@@ -20,7 +20,7 @@
   FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
   );
   
-   CREATE TABLE concern (
+   CREATE TABLE concerns (
   id INT AUTO_INCREMENT PRIMARY KEY,
   student_id VARCHAR(20),
   concern TEXT,
