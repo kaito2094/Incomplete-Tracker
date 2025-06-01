@@ -43,4 +43,4 @@ npm install express cors body-parser
 
 npm install axios
 
-npm install mysql12
+npm install mysql2
