@@ -4,7 +4,10 @@ import './LoginForm.css';
 function Login({ setAuth }) {
   const [id, setId] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
 
+  // Login handler
   const handleLogin = (e) => {
     e.preventDefault();
 
@@ -18,8 +21,32 @@ function Login({ setAuth }) {
         return res.json();
       })
       .then((data) => {
-        // data: { role, id, name }
         setAuth(data);
+      })
+      .catch((err) => alert(err.message));
+  };
+
+  // Register handler
+  const handleRegister = (e) => {
+    e.preventDefault();
+
+    fetch("http://localhost:5000/api/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, name, password }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          return res.json().then(err => { throw new Error(err.message); });
+        }
+        return res.json();
+      })
+      .then(() => {
+        alert("Registration successful! Please log in.");
+        setId("");
+        setName("");
+        setPassword("");
+        setIsRegistering(false);
       })
       .catch((err) => alert(err.message));
   };
@@ -44,31 +71,87 @@ function Login({ setAuth }) {
           </a>
         </div>
 
-        <div className="card login-container">
+        <div className={`card login-container ${isRegistering ? "expanded" : ""}`}>
           <img src="/CPESS.png" alt="CPESS Logo" className="logo" />
-          <form onSubmit={handleLogin}>
-            <div className="studentID">
-              <label>Student ID:</label><br />
-              <input
-                type="text"
-                value={id}
-                onChange={(e) => setId(e.target.value)}
-                required
-                placeholder="1600307"
-              />
-            </div>
-            <div className="password">
-              <label>Password:</label><br />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="Password"
-              />
-            </div>
-            <button type="submit">Login</button>
-          </form>
+
+          {isRegistering ? (
+            // Registration form
+            <form onSubmit={handleRegister}>
+              <div className="studentID">
+                <label>Student ID:</label><br />
+                <input
+                  type="text"
+                  name ="id"
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                  required
+                  placeholder="1600307"
+                />
+              </div>
+              <div className="name">
+                <label>Name:</label><br />
+                <input
+                  type="text"
+                  name = "name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="Full Name"
+                />
+              </div>
+              <div className="password">
+                <label>Password:</label><br />
+                <input
+                  type="password"
+                  name = "password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Password"
+                />
+              </div>
+              <button type="submit">Register</button>
+              <p>
+                Already have an account?{" "}
+                <button type="button" onClick={() => setIsRegistering(false)}>
+                  Log In
+                </button>
+              </p>
+            </form>
+          ) : (
+            // Login form
+            <form onSubmit={handleLogin}>
+              <div className="studentID">
+                <label>Student ID:</label><br />
+                <input
+                  type="text"
+                  name = "id"
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                  required
+                  placeholder="1600307"
+                />
+              </div>
+              <div className="password">
+                <label>Password:</label><br />
+                <input
+                  type="password"
+                  name = "password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="Password"
+                />
+              </div>
+              <button type="submit">Login</button>
+              <p className="register-text">
+  No Account?
+  <button type="button" onClick={() => setIsRegistering(true)}>
+    Register here
+  </button>
+</p>
+            </form>
+          )}
         </div>
 
         <div className="card right-box">
