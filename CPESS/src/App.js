@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import StudentDashboard from "./StudentDashboard";
 import ProfessorDashboard from "./ProfessorDashboard";
 import Login from "./Login";
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 
 function App() {
   const [auth, setAuth] = useState(null);
