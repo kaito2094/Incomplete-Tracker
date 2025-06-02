@@ -1,11 +1,30 @@
 const express = require("express");
 const cors = require("cors");
 const mysql = require("mysql2");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// ---------- File Upload Setup ---------- //
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, "uploads");
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir);
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "_" + file.originalname);
+  },
+});
+const upload = multer({ storage });
+
+// ---------- MySQL Setup ---------- //
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
@@ -13,15 +32,16 @@ const db = mysql.createConnection({
   database: "student_portal",
 });
 
-// Login
+// ---------- Login ---------- //
 app.post("/api/login", (req, res) => {
   const { id, password } = req.body;
 
-  // Check if professor
+  // Professor login
   if (id === "prof123" && password === "adminpass") {
     return res.json({ role: "professor", id: "prof123", name: "Prof. Xavier" });
   }
 
+  // Student login
   db.query("SELECT * FROM students WHERE id = ? AND password = ?", [id, password], (err, results) => {
     if (err) return res.status(500).json({ message: "DB error" });
     if (results.length === 0) return res.status(401).json({ message: "Invalid credentials" });
@@ -29,8 +49,27 @@ app.post("/api/login", (req, res) => {
     return res.json({ role: "student", id: results[0].id, name: results[0].name });
   });
 });
+// ---------- Register Student ---------- //
+app.post("/api/register", (req, res) => {
+  const { id, name, password } = req.body;
 
-// Get student details
+  if (!id || !name || !password) {
+    return res.status(400).json({ message: "All fields are required" });
+  }
+
+  db.query("INSERT INTO students (id, name, password) VALUES (?, ?, ?)", [id, name, password], (err, result) => {
+    if (err) {
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(409).json({ message: "Student ID already exists" });
+      }
+      return res.status(500).json({ message: "Error registering student" });
+    }
+
+    res.json({ message: "Registration successful" });
+  });
+});
+
+// ---------- Get Student Details ---------- //
 app.get("/api/student/:id", (req, res) => {
   const studentId = req.params.id;
 
@@ -51,7 +90,7 @@ app.get("/api/student/:id", (req, res) => {
   });
 });
 
-// Save or update student
+// ---------- Save or Update Student ---------- //
 app.post("/api/student", (req, res) => {
   const { id, name, password, subjects } = req.body;
 
@@ -78,7 +117,7 @@ app.post("/api/student", (req, res) => {
   });
 });
 
-// Get all students
+// ---------- Get All Students ---------- //
 app.get("/api/students", (req, res) => {
   db.query("SELECT id, name FROM students", (err, results) => {
     if (err) return res.status(500).json({ message: "Error loading students" });
@@ -86,7 +125,7 @@ app.get("/api/students", (req, res) => {
   });
 });
 
-// Delete student
+// ---------- Delete Student ---------- //
 app.delete("/api/student/:id", (req, res) => {
   const studentId = req.params.id;
   db.query("DELETE FROM students WHERE id = ?", [studentId], (err, result) => {
@@ -95,9 +134,28 @@ app.delete("/api/student/:id", (req, res) => {
   });
 });
 
-// ---------- STEP 2: Concerns API ---------- //
+// ---------- Step 1: Upload Task and Notify Professor ---------- //
+app.post("/api/upload", upload.single("file"), (req, res) => {
+  const { student_id, task_name } = req.body;
+  const file = req.file;
 
-// Add student concern
+  if (!student_id || !task_name || !file) {
+    return res.status(400).json({ error: "Missing required fields or file" });
+  }
+
+  const message = `Student ${student_id} uploaded a task: "${task_name}"`;
+
+  db.query(
+    "INSERT INTO notifications (student_id, message) VALUES (?, ?)",
+    [student_id, message],
+    (err) => {
+      if (err) return res.status(500).json({ error: "Failed to save notification" });
+      res.json({ message: "Task uploaded and professor notified" });
+    }
+  );
+});
+
+// ---------- Step 2: Concerns API ---------- //
 app.post("/api/concern", (req, res) => {
   const { student_id, concern } = req.body;
   if (!student_id || !concern) return res.status(400).json({ error: "Missing data" });
@@ -112,7 +170,6 @@ app.post("/api/concern", (req, res) => {
   );
 });
 
-// Get all concerns
 app.get("/api/concerns", (req, res) => {
   db.query(
     `SELECT concerns.id, concerns.student_id, students.name, concerns.concern, concerns.timestamp
@@ -126,17 +183,35 @@ app.get("/api/concerns", (req, res) => {
   );
 });
 
-// Delete a concern
 app.delete("/api/concern/:id", (req, res) => {
   const concernId = req.params.id;
-  db.query("DELETE FROM concerns WHERE id = ?", [concernId], (err, result) => {
+  db.query("DELETE FROM concerns WHERE id = ?", [concernId], (err) => {
     if (err) return res.status(500).json({ error: "Failed to delete concern" });
     res.json({ message: "Concern deleted" });
   });
 });
 
-// ---------- END Concerns API ---------- //
+// ---------- Step 3: Notifications API ---------- //
+app.get("/api/notifications", (req, res) => {
+  db.query("SELECT * FROM notifications ORDER BY timestamp DESC", (err, results) => {
+    if (err) return res.status(500).json({ error: "Failed to fetch notifications" });
+    res.json(results);
+  });
+});
 
+app.post("/api/notifications/read/:id", (req, res) => {
+  const notificationId = req.params.id;
+  db.query(
+    "UPDATE notifications SET read = TRUE WHERE id = ?",
+    [notificationId],
+    (err) => {
+      if (err) return res.status(500).json({ error: "Failed to mark notification as read" });
+      res.json({ message: "Notification marked as read" });
+    }
+  );
+});
+
+// ---------- Server Listen ---------- //
 const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
