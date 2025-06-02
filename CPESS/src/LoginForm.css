@@ -1,3 +1,4 @@
+
 /*Updated*/
 
 .App {
@@ -31,7 +32,7 @@
 .login-container {
   max-width: 350px;
   padding: 35px;
-  max-height: 350px;
+  max-height: 430px; /* Default compact height */
   border-radius: 30px;
   background-color: #fceef1;
   display: flex;
@@ -40,6 +41,13 @@
   box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5);
   margin: 70px 10px;
   margin-top: 150px;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+.login-container.expanded {
+  max-height: 520px; /* Bigger height for register form */
+  overflow: visible;
 }
 
 .login-container input {
@@ -173,15 +181,17 @@ input {
 }
 
 .right-box {
-  width: 25%;
+  width: 30%;
   margin-top: 40px;
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   border-radius: 10px;
-  
+  border: none; /* ensure no border */
+  background-color: transparent; /* optional: if a background is making it appear bordered */
 }
+
 
 .inbox1,
 .inbox2,
@@ -237,9 +247,8 @@ p {
   .main-layout {
     flex-direction: column;
     align-items: center;
+    padding: 20px;
   }
-
-  
 
   .left-box,
   .right-box,
@@ -253,7 +262,7 @@ p {
     flex-wrap: wrap;
     justify-content: space-around;
     gap: 20px;
-    
+    order: 2;
   }
 
   .left-box .card-shadow {
@@ -263,7 +272,11 @@ p {
 
   .right-box {
     align-items: stretch;
-    
+    order: 3;
+  }
+
+  .login-container {
+    order: 1;
   }
 }
 
@@ -301,6 +314,17 @@ p {
     padding: 10px;
     text-align: center;
   }
+
+  .card {
+    width: 100%;
+    padding: 15px;
+  }
+
+  button {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -327,7 +351,7 @@ p {
 
   .card {
     width: 100%;
-    padding: 15px;
+    padding: 10px;
   }
 
   .studentID input,
@@ -338,102 +362,37 @@ p {
 
   button {
     width: 100%;
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .navbar {
+    flex-direction: column;
     padding: 10px;
-    font-size: 14px;
+    gap: 10px;
+  }
+
+  .LoginForm-footer {
+    font-size: 12px;
+    padding: 10px;
   }
 }
 
-@media (max-width: 1024px) {
-  .main-layout {
-    flex-direction: column;
-    Background-size: Cover;
-  }
-
-  .login-container {
-    order: 1;
-  }
-
-  .left-box {
-    order: 2;
-  }
-
-  .right-box {
-    order: 3;
-  }
+.name {
+  text-align: center;
+  margin-bottom: 10px; /* spacing below the whole name section */
 }
 
-@media (min-width: 1920px) {
-  html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-  }
-
-  .main-layout {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: stretch;
-    gap: 40px;
-    padding: 40px;
-    max-width: 1800px;
-    max-height: 1800px;
-    margin: 0 auto;
-  }
-
-  .left-box,
-  .right-box,
-  .login-container {
-    height: 100%;
-    width: 30%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    margin-bottom: 0;
-  }
-
-  .left-box {
-    gap: 30px;
-  }
-
-  .left-box .card-shadow {
-    width: 100%;
-    padding: 30px;
-    flex-grow: 1;
-  }
-
-  .right-box {
-    align-items: flex-start;
-  }
-
-  .login-container {
-    padding: 40px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    justify-content: center;
-  }
-
-  .ubTitle {
-    font-size: 32px;
-  }
-
-  .logo,
-  .logo2 {
-    width: 100px;
-    height: 100px;
-  }
-
-  .studentID input,
-  .password input {
-    padding: 12px;
-    font-size: 18px;
-  }
-
-  button {
-    width: auto;
-    padding: 12px 24px;
-    font-size: 16px;
-  }
+.name label {
+  display: block;
+  margin: 0 auto -15px auto; /* zero top, 5px bottom */
 }
+
+.name input {
+  display: block;
+  margin: 0 auto;
+}
+
 .LoginForm-footer {
   text-align: center;
   padding: 15px;
@@ -444,4 +403,20 @@ p {
   border-top: 1px solid #d8bb65;
   margin-top: 0px;
   background: linear-gradient(to bottom, #800000 0%, #808080 100%);
+}
+
+.register-text {
+text-align: center;
+margin-top: 20px;
+}
+
+.register-text button {
+  background: none;
+  border: none;
+  color: blue;
+  text-decoration: underline;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
 }
