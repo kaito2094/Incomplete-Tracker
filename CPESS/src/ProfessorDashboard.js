@@ -22,18 +22,30 @@ function ProfessorDashboard({ setAuth }) {
 
   // Pagination state for tasks per subject  
   const [currentTaskPages, setCurrentTaskPages] = useState({});  
-  const tasksPerPage = 5;  
+  const tasksPerPage = 1; // Set to 1 for pagination
 
-  const [notifications, setNotifications] = useState([]);
-  const [expandedNotifId, setExpandedNotifId] = useState(null);
-  
+  const [selectedSubject, setSelectedSubject] = useState("");
+  const [filteredStudents, setFilteredStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [currentTaskPage, setCurrentTaskPage] = useState({}); // New state for task pagination
 
-const addNotification = (message) => {
-  setNotifications((prev) => [
-    ...prev,
-    { id: Date.now(), message, read: false },
-  ]);
-};
+  // Concerns pagination  
+  const [currentPage, setCurrentPage] = useState(1);  
+  const itemsPerPage = 1;  
+
+  const uniqueSubjects = Array.from(new Set(students.flatMap(s => Object.keys(s.subjects || {}))));
+
+
+  const [tableRows, setTableRows] = useState([]);
+const [tableCurrentPage, setTableCurrentPage] = useState(1);
+const tableRowsPerPage = 4;
+
+const indexOfLastRow = tableCurrentPage * tableRowsPerPage;
+const indexOfFirstRow = indexOfLastRow - tableRowsPerPage;
+const currentTableRows = tableRows.slice(indexOfFirstRow, indexOfLastRow);
+const totalTablePages = Math.ceil(tableRows.length / tableRowsPerPage);
+
+
 
   useEffect(() => {  
     fetch("http://localhost:5000/api/students")  
@@ -66,8 +78,6 @@ const addNotification = (message) => {
           setCurrentTaskPages({}); // Reset task pages for all subjects
         })  
         .catch((err) => alert(err.message));  
-
-        
     } else {  
       setFormData({ id: "", name: "", password: "", subjects: {} });  
       setNewTasks({});  
@@ -76,19 +86,80 @@ const addNotification = (message) => {
     }  
   }, [selectedStudentId]);  
 
-  // Fetch upload notifications from server
-useEffect(() => {
-  fetch("http://localhost:5000/api/notifications")
-    .then((res) => res.json())
-    .then((data) => {
-      const formatted = data.map((notif) => ({
-        ...notif,
-        read: notif.read === 1 || notif.read === true, // convert to boolean
-      }));
-      setNotifications(formatted);
-    })
-    .catch(() => alert("Failed to load task upload notifications"));
-}, []);
+  useEffect(() => {
+    if (!selectedSubject) return;
+
+    setLoading(true);
+    fetch(`http://localhost:5000/api/students-by-subject/${encodeURIComponent(selectedSubject)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        setFilteredStudents(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error fetching students:", err);
+        setLoading(false);
+      });
+  }, [selectedSubject]);
+
+  useEffect(() => {
+  // Flatten students data to rows for the table
+  const rows = [];
+
+  students.forEach((student) => {
+    const studentId = student.id;
+    const semester = student.semester || "N/A";
+    const schoolYear = student.schoolYear || "N/A";
+
+    if (student.subjects) {
+      Object.entries(student.subjects).forEach(([subjectName, tasks]) => {
+        // tasks can be empty array or undefined
+        if (tasks && tasks.length > 0) {
+          tasks.forEach((task) => {
+            rows.push({
+              studentId,
+              subjectCode: subjectName,  // Ideally subject code, but you only have name here
+              subjectName: subjectName,
+              semester,
+              schoolYear,
+              taskName: task.name || "N/A",
+              fileName: task.fileName || "N/A",
+              // Include student name if needed for action buttons
+              studentName: student.name,
+            });
+          });
+        } else {
+          // No tasks for this subject, add one row with empty task fields
+          rows.push({
+            studentId,
+            subjectCode: subjectName,
+            subjectName: subjectName,
+            semester,
+            schoolYear,
+            taskName: "N/A",
+            fileName: "N/A",
+            studentName: student.name,
+          });
+        }
+      });
+    } else {
+      // No subjects, add one row per student with empty subject/task fields?
+      rows.push({
+        studentId,
+        subjectCode: "N/A",
+        subjectName: "N/A",
+        semester,
+        schoolYear,
+        taskName: "N/A",
+        fileName: "N/A",
+        studentName: student.name,
+      });
+    }
+  });
+
+  setTableRows(rows);
+  setTableCurrentPage(1); // Reset to first page when data changes
+}, [students]);
 
   const handleAddSubject = () => {  
     if (!newSubject.trim()) return;  
@@ -139,21 +210,65 @@ useEffect(() => {
   };  
 
   const handleTaskEdit = (subject, index, field, value) => {
-  const updatedTasks = [...formData.subjects[subject]];
-  updatedTasks[index][field] = value;
+    const updatedTasks = [...formData.subjects[subject]];
+    updatedTasks[index][field] = value;
 
-  setFormData((prev) => ({
-    ...prev,
-    subjects: { ...prev.subjects, [subject]: updatedTasks },
-  }));
+    setFormData((prev) => ({
+      ...prev,
+      subjects: { ...prev.subjects, [subject]: updatedTasks },
+    }));
 
-  // Detect if the task was marked "Completed"
-  if (field === "status" && value === "Completed") {
-    const taskName = updatedTasks[index].name;
-    addNotification(`${formData.name} completed task "${taskName}" in subject "${subject}"`);
-  }
-};
+    // Detect if the task was marked "Completed"
+    if (field === "status" && value === "Completed") {
+      const taskName = updatedTasks[index].name;
+      // Additional logic can go here if needed
+    }
+  };
 
+  const handleSubjectSelect = async (subject) => {
+    setSelectedSubject(subject);
+    setLoading(true);
+
+    try {
+      // Step 1: Fetch all student IDs and names
+      const studentListRes = await fetch("http://localhost:5000/api/students");
+      const studentList = await studentListRes.json();
+
+      // Step 2: Fetch detailed data for each student
+      const detailedStudents = await Promise.all(
+        studentList.map(async (student) => {
+          try {
+            const res = await fetch(`http://localhost:5000/api/student/${student.id}`);
+            return res.json();
+          } catch (error) {
+            console.error(`Error fetching data for student ${student.id}:`, error);
+            return { ...student, subjects: {} }; // Return basic student info with empty subjects
+          }
+        })
+      );
+
+      // Step 3: Filter students who have the selected subject
+      const matching = detailedStudents
+        .filter((student) => student.subjects && student.subjects[subject])
+        .map((student) => ({
+          ...student,
+          subjectData: {
+            code: subject, // Replace with real code if available
+            name: subject,
+            unit: student.subjects[subject]?.unit || "N/A",
+            tasks: Array.isArray(student.subjects[subject]) ? student.subjects[subject] : [],
+          },
+        }));
+
+      setFilteredStudents(matching);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error loading students:", error);
+      setFilteredStudents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleRemoveTask = (subject, index) => {  
     const updatedTasks = formData.subjects[subject].filter((_, i) => i !== index);  
@@ -217,10 +332,7 @@ useEffect(() => {
     );
   };
 
-  // Concerns pagination  
-  const [currentPage, setCurrentPage] = useState(1);  
-  const itemsPerPage = 1;  
-
+  // Pagination for concerns  
   const indexOfLast = currentPage * itemsPerPage;
   const indexOfFirst = indexOfLast - itemsPerPage;
   const currentConcerns = concerns.slice(indexOfFirst, indexOfLast);
@@ -234,356 +346,198 @@ useEffect(() => {
 
   // Task Pagination Logic per subject  
   const handleTaskPagination = (subject) => { 
-    if (!formData.subjects[subject]) return [];
+    if (!subject || !formData.subjects || !formData.subjects[subject]) return [];
     const currentTaskPage = currentTaskPages[subject] || 1;
-    const indexOfLastTask = currentTaskPage * tasksPerPage; 
-    const indexOfFirstTask = indexOfLastTask - tasksPerPage; 
-    return formData.subjects[subject].slice(indexOfFirstTask, indexOfLastTask); 
-  }; 
-
-  const totalTaskPages = (subject) => { 
-    if (!formData.subjects[subject]) return 1;
-    return Math.max(1, Math.ceil(formData.subjects[subject].length / tasksPerPage)); 
-  }; 
+    const indexOfLastTask = currentTaskPage; 
+    const indexOfFirstTask = indexOfLastTask - 1; 
+    return formData.subjects[subject].slice(indexOfFirstTask, indexOfLastTask);
+  };
 
   return (  
-    <div className="container-fluid p-0">  
-      {/* Navigation bar */}  
-      <div className="navbar-custom d-flex justify-content-between align-items-center p-3">
-  <div className="d-flex align-items-center gap-3">
-    <img src="CPESS.png" alt="Logo" style={{ height: 60 }} />
-    <h2 className="text-white m-0">Professor Dashboard</h2>
-  </div>
-
-  <div className="d-flex align-items-center gap-3">
-    {/* Notifications section */}
-<div className="notification-section">
-  {notifications.length === 0 ? (
-    <span className="text-light">No new notifications</span>
-  ) : (
-    notifications.map((notif) => (
-      <div key={notif.id} style={{ position: "relative", marginBottom: "10px" }}>
-        <div
-          className={`alert d-flex justify-content-between align-items-center p-2 ${
-            notif.read ? "alert-secondary" : "alert-primary"
-          }`}
-          style={{ cursor: "pointer", minWidth: "250px" }}
-          onClick={() =>
-            setExpandedNotifId(expandedNotifId === notif.id ? null : notif.id)
-          }
-        >
-          <span style={{ flex: 1 }}>{notif.message}</span>
-          {!notif.read && (
-            <button
-              className="btn btn-sm btn-outline-light ms-2"
-              onClick={(e) => {
-                e.stopPropagation(); // prevent expanding when marking as read
-                setNotifications((prev) =>
-                  prev.map((n) =>
-                    n.id === notif.id ? { ...n, read: true } : n
-                  )
-                );
-              }}
-            >
-              Mark Read
-            </button>
-          )}
-        </div>
-
-        {/* Pop-out box below the notification */}
-        {expandedNotifId === notif.id && (
-          <div className="card shadow p-3" style={{ position: "absolute", top: "100%", zIndex: 10, backgroundColor: "white", minWidth: "250px", maxWidth: "300px" }}>
-            <div className="d-flex justify-content-between align-items-start">
-              <p className="mb-2">{notif.message}</p>
-              <button
-                className="btn btn-sm btn-outline-danger"
-                onClick={() => setExpandedNotifId(null)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    ))
-  )}
-</div>
-
-    {/* Logout button */}
-    <button className="btn btn-light btn-sm btn-logout-small" onClick={handleLogout}>
-      Logout
-    </button>
-  </div>
-</div>
-
-      {/* Dashboard columns with swapped Add Student and Add Subject */}  
-      <div className="dashboard-row px-4 py-4">  
-        {/* Left Column: Add Student */}  
-        <div className="dashboard-column dashboard-left card p-3">  
-          <h4>Add Student</h4>  
-          <select  
-            className="form-select mb-3"  
-            value={selectedStudentId}  
-            onChange={(e) => setSelectedStudentId(e.target.value)}  
-          >  
-            <option value="">Select Student</option>  
-            {students.map((student) => (  
-              <option key={student.id} value={student.id}>  
-                {student.name} ({student.id})  
-              </option>  
-            ))}  
-          </select>  
-
-          <input  
-            className="form-control mb-2"  
-            placeholder="Student ID"  
-            value={formData.id}  
-            onChange={(e) => setFormData({ ...formData, id: e.target.value })}  
-          />  
-          <input  
-            className="form-control mb-2"  
-            placeholder="Student Name"  
-            value={formData.name}  
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}  
-          />  
-          <input  
-            className="form-control mb-3"  
-            placeholder="Password (must match ID)"  
-            type="password"  
-            value={formData.password}  
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}  
-          />  
-
-          <button className="btn btn-primary me-2" onClick={handleSave}>  
-            Save  
-          </button>  
-          <button className="btn btn-danger" onClick={handleDelete}>  
-            Delete  
+    <div className="prof-entire-body">  
+      <div className="prof-header">  
+        <div className="prof-navbar">  
+          <img src="/CPESS.png" alt="CPESS Logo" className="logo3" />  
+          <h1>Professor Dashboard</h1>  
+          <button className="prof-button-logout" onClick={handleLogout}>  
+            Logout  
           </button>  
         </div>  
+      </div>  
 
-        {/* Center Column: Subjects & Tasks (1 subject per page) */}  
-        <div className="dashboard-column dashboard-center card p-3">  
-          <h4>Subjects & Tasks</h4>  
-
-          {subjectsArray.length === 0 ? (  
-            <p className="text-muted">No subjects added.</p>  
-          ) : (  
-            <>  
-              {currentSubject && (  
-                <div key={currentSubject[0]} className="mb-3">  
-                  <h5 className="text-center">{currentSubject[0]}</h5>
-
-                  {handleTaskPagination(currentSubject[0]).map((task, idx) => (  
-                    <div  
-                      key={idx}  
-                      className="task-card"  
-                    >  
-                      <input  
-                       className="form-control me-2 task-name-input" 
-                        value={task.name}  
-                        onChange={(e) =>  
-                          handleTaskEdit(  
-                            currentSubject[0],  
-                            idx + ((currentTaskPages[currentSubject[0]] || 1) - 1) * tasksPerPage,  
-                            "name",  
-                            e.target.value  
-                          )  
-                        }  
-                      />  
-                      <select  
-                         className="form-select me-2 task-status-select"
-                        value={task.status}  
-                        onChange={(e) =>  
-                          handleTaskEdit(  
-                            currentSubject[0],  
-                            idx + ((currentTaskPages[currentSubject[0]] || 1) - 1) * tasksPerPage,  
-                            "status",  
-                            e.target.value  
-                          )  
-                        }  
-                      >  
-                        <option value="">Select Status</option>  
-                        <option value="Completed">Completed</option>  
-                        <option value="Ongoing">Ongoing</option>  
-                        <option value="Pending">Pending</option>  
-                      </select>  
-                      <button  
-                        className="btn btn-danger btn-sm task-delete-btn"  
-                        onClick={() =>  
-                          handleRemoveTask(  
-                            currentSubject[0],  
-                            idx + ((currentTaskPages[currentSubject[0]] || 1) - 1) * tasksPerPage  
-                          )  
-                        }  
-                      >  
-                        Delete  
-                      </button>  
+      <div className="prof-main-row">  
+        <div className="prof-left-container">  
+          <div className="prof-main-header">Subject & Task</div>  
+          <div className="prof-main-box">  
+            {filteredStudents.length === 0 ? (  
+              <p>No students found for this subject.</p>  
+            ) : (  
+              filteredStudents.map((student, index) => (  
+                <div key={index}>  
+                  <div className="field-row-container">  
+                    <div className="field-row">  
+                      <span className="label">Student Name:</span>  
+                      <span className="value">{student.name}</span>  
                     </div>  
-                  ))}  
-
-                  {/* Task pagination */}  
-                  {totalTaskPages(currentSubject[0]) > 1 && (  
-                    <div className="d-flex justify-content-center gap-1 mt-1">  
-                      <button  
-                        className="btn btn-outline-secondary btn-sm"  
-                        disabled={(currentTaskPages[currentSubject[0]] || 1) === 1}  
-                        onClick={() =>  
-                          setCurrentTaskPages((prev) => ({  
-                            ...prev,  
-                            [currentSubject[0]]: Math.max((prev[currentSubject[0]] || 1) - 1, 1),  
-                          }))  
-                        }  
-                      >  
-                        &lt;  
-                      </button>  
-                      <span className="align-self-center">  
-                        Page {(currentTaskPages[currentSubject[0]] || 1)} of {totalTaskPages(currentSubject[0])}  
-                      </span>  
-                      <button  
-                        className="btn btn-outline-secondary btn-sm"  
-                        disabled={(currentTaskPages[currentSubject[0]] || 1) === totalTaskPages(currentSubject[0])}  
-                        onClick={() =>  
-                          setCurrentTaskPages((prev) => ({  
-                            ...prev,  
-                            [currentSubject[0]]: Math.min((prev[currentSubject[0]] || 1) + 1, totalTaskPages(currentSubject[0])),  
-                          }))  
-                        }  
-                      >  
-                        &gt;  
-                      </button>  
+                    <div className="field-row">  
+                      <span className="label">Semester:</span>  
+                      <span className="value">{student.semester || "N/A"}</span>  
                     </div>  
-                  )}  
-
-                  {/* Add new task input */}  
-                  <div className="d-flex mt-2 gap-2">  
-                    <input  
-                      className="form-control"  
-                      placeholder="New Task Name"  
-                      value={(newTasks[currentSubject[0]]?.name) || ""}  
-                      onChange={(e) => handleNewTaskChange(currentSubject[0], "name", e.target.value)}  
-                    />  
-                    <select  
-                      className="form-select"  
-                      value={(newTasks[currentSubject[0]]?.status) || ""}  
-                      onChange={(e) => handleNewTaskChange(currentSubject[0], "status", e.target.value)}  
-                    >  
-                      <option value="">Select Status</option>  
-                      <option value="Completed">Completed</option>  
-                      <option value="Ongoing">Ongoing</option>  
-                      <option value="Pending">Pending</option>  
-                    </select>  
-                    <button className="btn btn-primary" onClick={() => handleAddTask(currentSubject[0])}>  
-                      Add Task  
-                    </button>  
                   </div>  
-                </div>  
-              )}  
 
-              {/* Subject pagination controls */}  
-              {subjectsArray.length > subjectsPerPage && (  
-                <div className="d-flex justify-content-center gap-1 mt-3">  
-                  <button  
-                    className="btn btn-outline-secondary pagination-btn-center" 
-                    onClick={() => setCurrentSubjectPage((prev) => Math.max(prev - 1, 1))}  
-                    disabled={currentSubjectPage === 1}  
-                  >  
-                    &lt;  
-                  </button>  
-                  <span className="align-self-center1">  
-                    Subject Page {currentSubjectPage} of {totalSubjectPages}  
-                  </span>  
-                  <button  
-                    className="btn btn-outline-secondary pagination-btn-center" 
-                    onClick={() => setCurrentSubjectPage((prev) => Math.min(prev + 1, totalSubjectPages))}  
-                    disabled={currentSubjectPage === totalSubjectPages}  
-                  >  
-                    &gt;  
-                  </button>  
-                </div>  
-              )}  
-            </>  
-          )}  
+                  <div className="field-row-container">  
+                    <div className="field-row">  
+                      <span className="label">Student ID:</span>  
+                      <span className="value">{student.id}</span>  
+                    </div>  
+                    <div className="field-row">  
+                      <span className="label">School Year:</span>  
+                      <span className="value">{student.schoolYear || "N/A"}</span>  
+                    </div>  
+                  </div>  
 
-          
+                  <div className="field-row">  
+                    <span className="label">Subject Code:</span>  
+                    <span className="value">{student.subjectData?.code || "N/A"}</span>  
+                  </div>  
+                  <div className="field-row">  
+                    <span className="label">Subject Name:</span>  
+                    <span className="value">{student.subjectData?.name}</span>  
+                  </div>  
+                  <div className="field-row">  
+                    <span className="label">Unit:</span>  
+                    <span className="value">{student.subjectData?.unit}</span>  
+                  </div>  
+
+                  {student.subjectData?.tasks?.length > 0 && (
+                    <div>
+                      <div className="field-row">
+                        <span className="label">Task/Activity Name:</span>
+                        <span className="value">{handleTaskPagination(student.subjectData?.code)?.[0]?.name || "N/A"}</span>
+                      </div>
+                      <div className="field-row">
+                        <span className="label">File Name:</span>
+                        <span className="value">{handleTaskPagination(student.subjectData?.code)?.[0]?.fileName || "N/A"}</span>
+                      </div>
+                      <div className="pagination-buttons">
+                        <button
+                         onClick={() => {
+  setCurrentTaskPages((prev) => ({
+    ...prev,
+    [student.subjectData?.code]: Math.min((prev[student.subjectData?.code] || 1) + 1, student.subjectData?.tasks?.length || 1),
+  }));
+}}
+                          disabled={(currentTaskPages[student.subjectData?.code] || 1) === 1}
+                        >
+                          Previous
+                        </button>
+                        <button
+                          onClick={() => {
+                            setCurrentTaskPage((prev) => ({
+                              ...prev,
+                              [student.subjectData?.code]: Math.min((prev[student.subjectData?.code] || 1) + 1, student.subjectData?.tasks?.length || 1),
+                            }));
+                          }}
+                          disabled={currentTaskPage[student.subjectData?.code] === student.subjectData?.tasks?.length}
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <hr />  
+                </div>  
+              ))  
+            )}  
+          </div>  
         </div>  
 
-<div className="dashboard-column dashboard-right card p-3">
-      {/* Add Subject Section */}
-      <div className="mb-4">
-        <h5>Add Subject</h5>
-        <input
-          className="form-control mb-2 custom-width"
-  placeholder="New Subject Name"
-  value={newSubject}
-  onChange={(e) => setNewSubject(e.target.value)}
-/>
-<button className="btn btn-primary custom-width" onClick={handleAddSubject}>
-  Add Subject
-</button>
-      </div>
+        <div className="prof-right-container">  
+          <div className="prof-profile-header">Profile</div>  
+          <div className="prof-profile-box"> Subjects  
+            <div>  
+              <select  
+                className="prof-horizontal-dropdown"  
+                onChange={(e) => handleSubjectSelect(e.target.value)}  
+                defaultValue=""  
+              >  
+                <option value="">Select Subject</option>  
+                <option value="Software Design">Software Design</option>  
+                <option value="FeedBack">FeedBack</option>  
+                <option value="Microprocessor">Microprocessor</option>  
+                <option value="Operating System">Operating System</option>  
+                <option value="Cisco 2">Cisco 2</option>  
+                <option value="Mixed Signals">Mixed Signals</option>  
+                <option value="Practice and Design">Practice and Design</option>  
+              </select>  
+              {/* filteredStudents display removed */}  
+            </div>  
+          </div>  
+        </div>  
+      </div>  
 
-  {/* Student Concerns Section */}
-  <h4>Student Concerns</h4>
-  {concerns.length === 0 ? (
-    <p className="text-muted">No concerns submitted.</p>
-  ) : (
-    <>
-  {currentConcerns.map((concern) => (
-  <div
-    key={concern.id}
-    className={`card p-3 mb-2 ${concern.read ? "bg-light" : ""}`}
+      <table className="prof-dashboard-table">
+  <thead>
+          <tr>
+            <th>Student ID</th>
+            <th>Subject Code</th>
+            <th>Subject Name</th>
+            <th>Semester</th>
+            <th>School Year</th>
+            <th>Task/Activity Name</th>
+            <th>File Name</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+  <tbody>
+    {currentTableRows.length === 0 ? (
+      <tr>
+        <td colSpan="8" style={{ textAlign: "center" }}>
+          No data found.
+        </td>
+      </tr>
+    ) : (
+      currentTableRows.map((row, idx) => (
+        <tr key={idx}>
+          <td>{row.studentId}</td>
+          <td>{row.subjectCode}</td>
+          <td>{row.subjectName}</td>
+          <td>{row.semester}</td>
+          <td>{row.schoolYear}</td>
+          <td>{row.taskName}</td>
+          <td>{row.fileName}</td>
+          <td>
+            {/* Example action: alert student name */}
+            <button onClick={() => alert(`Student: ${row.studentName}`)}>Info</button>
+          </td>
+        </tr>
+      ))
+    )}
+  </tbody>
+</table>
+
+      <div className="prof-bottom-right-buttons">
+  <button
+    className="prof-nav-btn"
+    onClick={() => setTableCurrentPage((p) => Math.max(p - 1, 1))}
+    disabled={tableCurrentPage === 1}
   >
-    <p><strong>Student:</strong> {concern.studentName} ({concern.studentId})</p>
-    
-    {/* Make the concern text bold if not read */}
-    <p style={{ fontWeight: concern.read ? "normal" : "bold" }}>
-      <strong>Concern:</strong> {concern.concern}
-    </p>
+    &lt; Previous
+  </button>
+  <span style={{ margin: "0 10px" }}>
+    Page {tableCurrentPage} of {totalTablePages}
+  </span>
+  <button
+    className="prof-nav-btn"
+    onClick={() => setTableCurrentPage((p) => Math.min(p + 1, totalTablePages))}
+    disabled={tableCurrentPage === totalTablePages}
+  >
+    Next &gt;
+  </button>
+</div>
 
-    <div className="d-flex justify-content-end gap-2">
-      {!concern.read && (
-        <button
-          className="btn btn-success btn-sm"
-          onClick={() => handleMarkAsDone(concern.id)}
-        >
-          Mark as Done
-        </button>
-      )}
-      <button
-        className="btn btn-danger btn-sm"
-        onClick={() => handleDeleteConcern(concern.id)}
-      >
-        Delete
-      </button>
-    </div>
-  </div>
-))}
-      {/* Concerns Pagination Controls */}
-      {concerns.length > itemsPerPage && (
-        <div className="d-flex justify-content-center gap-1 mt-3">
-          <button
-            className="btn btn-outline-secondary btn-sm pagination-btn"
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            &lt;
-          </button>
-          <span className="align-self-center">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-           className="btn btn-outline-secondary btn-sm pagination-btn"
-            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            &gt;
-          </button>
-        </div>
-      )}
-    </>
-  )}
-</div>  
+      <div className="prof-footer">  
+        <p>© 2025 CPESS Student Portal. All rights reserved.</p>  
       </div>  
     </div>  
   );  
