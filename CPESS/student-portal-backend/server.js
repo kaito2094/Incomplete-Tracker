@@ -8,6 +8,7 @@ const fs = require("fs");
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ---------- File Upload Setup ---------- //
 const storage = multer.diskStorage({
@@ -25,10 +26,10 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 // ---------- MySQL Setup ---------- //
-const db = mysql.createConnection({
+const db = await mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "", // default in XAMPP
+  password: "",
   database: "student_portal",
 });
 
@@ -76,19 +77,36 @@ app.get("/api/student/:id", (req, res) => {
   db.query("SELECT * FROM students WHERE id = ?", [studentId], (err, students) => {
     if (err || students.length === 0) return res.status(404).json({ error: "Student not found" });
 
-    db.query("SELECT subject_name, task_name, status FROM subjects WHERE student_id = ?", [studentId], (err, tasks) => {
-      if (err) return res.status(500).json({ error: "Error loading subjects" });
+    db.query(
+      `SELECT subject_name, task_name, status, filename
+       FROM student_tasks
+       WHERE student_id = ?`,
+      [studentId],
+      (err, tasks) => {
+        if (err) return res.status(500).json({ error: "Error loading tasks" });
 
-      const subjects = {};
-      for (const row of tasks) {
-        if (!subjects[row.subject_name]) subjects[row.subject_name] = [];
-        subjects[row.subject_name].push({ name: row.task_name, status: row.status });
+        // Group by subject
+        const groupedSubjects = {};
+        for (const task of tasks) {
+          const subject = task.subject_name;
+          if (!groupedSubjects[subject]) groupedSubjects[subject] = [];
+          groupedSubjects[subject].push({
+            name: task.task_name,
+            status: task.status,
+            fileName: task.filename,
+          });
+        }
+
+        res.json({
+          ...students[0],
+          subjects: groupedSubjects
+        });
       }
-
-      res.json({ ...students[0], subjects });
-    });
+    );
   });
 });
+
+
 
 // ---------- Save or Update Student ---------- //
 app.post("/api/student", (req, res) => {
@@ -136,24 +154,40 @@ app.delete("/api/student/:id", (req, res) => {
 
 // ---------- Step 1: Upload Task and Notify Professor ---------- //
 app.post("/api/upload", upload.single("file"), (req, res) => {
-  const { student_id, task_name } = req.body;
+  const {
+    student_id,
+    task_name,
+    subject_code,
+    subject_name,
+    semester,
+    school_year
+  } = req.body;
+
   const file = req.file;
 
-  if (!student_id || !task_name || !file) {
+  if (!student_id || !task_name || !subject_code || !subject_name || !semester || !school_year || !file) {
     return res.status(400).json({ error: "Missing required fields or file" });
   }
 
-  const message = `Student ${student_id} uploaded a task: "${task_name}"`;
+  const insertQuery = `
+    INSERT INTO student_tasks 
+    (student_id, subject_code, subject_name, semester, school_year, task_name, filename)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
 
   db.query(
-    "INSERT INTO notifications (student_id, message) VALUES (?, ?)",
-    [student_id, message],
+    insertQuery,
+    [student_id, subject_code, subject_name, semester, school_year, task_name, file.filename],
     (err) => {
-      if (err) return res.status(500).json({ error: "Failed to save notification" });
-      res.json({ message: "Task uploaded and professor notified" });
+      if (err) return res.status(500).json({ error: "Failed to save task" });
+      res.json({ 
+        message: "Task uploaded and saved successfully.",
+        fileUrl: `/uploads/${file.filename}`
+      });
     }
   );
 });
+
 
 // ---------- Step 2: Concerns API ---------- //
 app.post("/api/concern", (req, res) => {
@@ -209,6 +243,57 @@ app.post("/api/notifications/read/:id", (req, res) => {
       res.json({ message: "Notification marked as read" });
     }
   );
+});
+
+
+app.get("/api/students-by-subject/:subject_name", (req, res) => {
+  const subjectName = req.params.subject_name;
+
+  const query = `
+    SELECT DISTINCT students.id, students.name
+    FROM students
+    JOIN student_tasks ON students.id = student_tasks.student_id
+    WHERE student_tasks.subject_name = ?
+  `;
+
+  db.query(query, [subjectName], (err, results) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    res.json(results);
+  });
+});
+
+// Node.js with Express
+app.get('/api/tasks', (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 4;
+  const offset = (page - 1) * limit;
+
+  db.query('SELECT COUNT(*) AS total FROM student_tasks', (err, countResult) => {
+    if (err) return res.status(500).json({ error: 'Count query failed' });
+
+    const total = countResult[0].total;
+
+    db.query('SELECT * FROM student_tasks LIMIT ? OFFSET ?', [limit, offset], (err, tasks) => {
+      if (err) return res.status(500).json({ error: 'Fetch tasks failed' });
+
+      res.json({ tasks, total });
+    });
+  });
+});
+
+
+
+
+app.put('/api/tasks/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    await db.execute("UPDATE student_tasks SET status = ? WHERE id = ?", [status, id]);
+    res.json({ message: "Task status updated successfully." });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to update task status" });
+  }
 });
 
 // ---------- Server Listen ---------- //
