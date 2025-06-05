@@ -36,6 +36,7 @@
   semester VARCHAR(20) NOT NULL,
   school_year VARCHAR(20) NOT NULL,
   task_name VARCHAR(100) NOT NULL,
+  description TEXT,
   status ENUM('Pending', 'Complete', 'Incomplete') DEFAULT 'Pending',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
