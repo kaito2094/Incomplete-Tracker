@@ -4,12 +4,22 @@ import './Dashboard.css';
 
 function StudentDashboard({ studentId, setAuth }) {
   const [studentData, setStudentData] = useState(null);
-  const [concern, setConcern] = useState("");
-  const [currentSubjectIndex, setCurrentSubjectIndex] = useState(0);
   const [taskName, setTaskName] = useState("");
   const [taskFile, setTaskFile] = useState(null);
+  const [description, setDescription] = useState("");
+  const [subjectCode, setSubjectCode] = useState("");
+  const [subjectName, setSubjectName] = useState("");
+  const [unit, setUnit] = useState("");
+  const [semester, setSemester] = useState("");
+  const [schoolYear, setSchoolYear] = useState("");
+  const [reason, setReason] = useState("");
+  const [fileInputKey, setFileInputKey] = useState(Date.now());
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(0);
+  const rowsPerPage = 4;
 
-  useEffect(() => {
+  // ✅ Reusable fetch function
+  const fetchStudentData = () => {
     fetch(`http://localhost:5000/api/student/${studentId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to load student data");
@@ -17,199 +27,235 @@ function StudentDashboard({ studentId, setAuth }) {
       })
       .then((data) => {
         setStudentData(data);
-        setCurrentSubjectIndex(0);
       })
       .catch((err) => {
         console.error(err);
         alert("Error loading student data.");
       });
+  };
+
+  useEffect(() => {
+    fetchStudentData();
   }, [studentId]);
 
   const handleLogout = () => {
     setAuth(null);
   };
 
-  const handleConcernSubmit = () => {
-    if (!concern.trim()) return alert("Please enter your concern.");
+const handleCancel = () => {
+  setTaskName("");
+  setTaskFile(null);
+  setDescription("");
+  setSubjectCode("");
+  setSubjectName("");
+  setUnit("");
+  setSemester("");
+  setSchoolYear("");
+  setReason("");
+  setFileInputKey(Date.now()); // This will reset the file input
+};
 
-    fetch("http://localhost:5000/api/concern", {
+
+  const handleSubmit = () => {
+    if (!taskName || !taskFile) {
+      alert("Please enter a task name and choose a file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("student_id", studentId);
+formData.append("task_name", taskName);
+formData.append("subject_code", subjectCode);
+formData.append("subject_name", subjectName);
+formData.append("semester", semester);
+formData.append("school_year", schoolYear);
+formData.append("file", taskFile);
+formData.append("description", description);
+formData.append("unit", unit);
+formData.append("reason", reason);
+
+    fetch("http://localhost:5000/api/upload", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ student_id: studentId, concern }),
+      body: formData,
     })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to submit concern");
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to upload task");
         return res.json();
       })
       .then(() => {
-        alert("Concern submitted successfully!");
-        setConcern("");
-      })
-      .catch((err) => {
+  alert("Task uploaded successfully!");
+  handleCancel();
+  setCurrentPage(0); // Go to the first page to show the latest task
+  fetchStudentData(); // Refresh tasks
+})
+      .catch(err => {
         console.error(err);
-        alert("Error submitting concern.");
+        alert("Error uploading task.");
       });
   };
 
-  const handleTaskUpload = () => {
-  if (!taskName || !taskFile) {
-    alert("Please enter a task name and choose a file.");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("student_id", studentId);
-  formData.append("file", taskFile);  // Note the field name matches backend multer single("file")
-  // Optionally send taskName, but backend currently ignores it
-  formData.append("task_name", taskName);
-
-  fetch("http://localhost:5000/api/upload", {
-    method: "POST",
-    body: formData,
-  })
-  .then(res => {
-    if (!res.ok) throw new Error("Failed to upload task");
-    return res.json();
-  })
-  .then(() => {
-    alert("Task uploaded successfully and professor notified!");
-    setTaskName("");
-    setTaskFile(null);
-  })
-  .catch(err => {
-    console.error(err);
-    alert("Error uploading task.");
-  });
-};
   if (!studentData) return <p className="text-center mt-5">Loading...</p>;
 
-  const subjectKeys = Object.keys(studentData.subjects || {});
-  const currentSubject = subjectKeys[currentSubjectIndex];
-  const allTasks = studentData.subjects[currentSubject] || [];
-  const incompleteTasks = allTasks.filter((task) =>
-    task.status.toLowerCase() !== "completed"
-  );
+  const allTasks = studentData.tasks || [];
+  const totalPages = Math.ceil(allTasks.length / rowsPerPage);
+  // Calculate the tasks to display for current page
+const displayedTasks = allTasks.slice(currentPage * rowsPerPage, (currentPage + 1) * rowsPerPage);
+
+
+
 
   return (
-    <div className="dashboard-container">
-      <nav className="dashboard-navbar">
-        <img src="CPESS.png" alt="Logo" className="dashboard-logo" />
-        <h1 className="dashboard-title">Student Dashboard</h1>
-        <button className="logout-btn" onClick={handleLogout}>Logout</button>
-      </nav>
+    <div className="student-dashboard-entire-body">
+      {/* Navbar */}
+      <div className="student-navbar">
+        <img src="/CPESS.png" alt="CPESS Logo" className="logo3" />
+        <h1 className="student-dashboard-title">Student Dashboard</h1>
+        <button className="student-logout-btn" onClick={handleLogout}>Logout</button>
+      </div>
 
-      <div className="dashboard-main">
-        {/* Student Info & Upload */}
-        <div className="dashboard-card student-info-card">
-          <div className="card-header">
-            <h3>Student Info</h3>
-          </div>
-          <div className="card-content d-flex flex-column gap-3">
-            {/* Student Info */}
-            <div className="p-2 border rounded bg-light">
-              <p><strong>Name:</strong> {studentData.name}</p>
-              <p><strong>ID:</strong> {studentId}</p>
-            </div>
-
-            {/* Upload Incomplete Task */}
-            <div className="p-2 border rounded bg-light">
-              <h5>Upload Incomplete Task</h5>
-              <input
-                type="text"
-                placeholder="Enter task name"
-                className="form-control mb-2"
-                value={taskName}
-                onChange={(e) => setTaskName(e.target.value)}
-              />
-              <input
-                type="file"
-                className="form-control mb-2"
-                onChange={(e) => setTaskFile(e.target.files[0])}
-              />
-              <button className="btn btn-primary" onClick={handleTaskUpload}>
-                Upload Task
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Subjects & Tasks */}
-        <div className="dashboard-card subjects-card">
-          <div className="card-header">
-            <h3>Subjects & Tasks</h3>
-          </div>
-          <div className="card-content scrollable">
-            {subjectKeys.length > 0 ? (
-              <div className="subject-section mb-4 d-flex flex-column" style={{ minHeight: "300px" }}>
-                <div className="subject-header text-center mb-3">
-                  <span className="subject-title">{currentSubject}</span>
+      {/* Main content */}
+      <div className="student-main-content-row">
+        {/* Left */}
+        <div className="student-main-left">
+          <div className="student-main-header">Subject & Task</div>
+          <div className="student-main-box">
+            <div className="student-main-form-row">
+              <div className="student-main-form-col">
+                <div className="student-main-label-row">
+                  <span className="student-main-label">Student Name: </span>
+                  <span className="student-main-value">{studentData.name}</span>
                 </div>
-
-                <ul className="task-list flex-grow-1">
-                  {incompleteTasks.length === 0 ? (
-                    <li>All tasks are completed for this subject.</li>
-                  ) : (
-                    incompleteTasks.map((task, idx) => (
-                      <li key={idx}>
-                        {task.name} — <strong>{task.status}</strong>
-                      </li>
-                    ))
-                  )}
-                </ul>
-
-                <div className="d-flex justify-content-between mt-3">
-                  <button
-                    className="pagination-button"
-                    onClick={() => setCurrentSubjectIndex((prev) => Math.max(prev - 1, 0))}
-                    disabled={currentSubjectIndex === 0}
-                  >
-                    ⬅ Previous Subject
-                  </button>
-                  <button
-                    className="pagination-button"
-                    onClick={() =>
-                      setCurrentSubjectIndex((prev) =>
-                        Math.min(prev + 1, subjectKeys.length - 1)
-                      )
-                    }
-                    disabled={currentSubjectIndex === subjectKeys.length - 1}
-                  >
-                    Next Subject ➡
-                  </button>
+                <div className="student-main-label-row">
+                  <span className="student-main-label">Student Id: </span>
+                  <span className="student-main-value">{studentData.id}</span>
+                </div>
+                <div className="student-main-label">Subject Code:
+                  <input type="text" className="student-main-input11" value={subjectCode} onChange={(e) => setSubjectCode(e.target.value)} />
+                </div>
+                <div className="student-main-label">Subject Name:
+                  <input type="text" className="student-main-input10" value={subjectName} onChange={(e) => setSubjectName(e.target.value)} />
+                </div>
+                <div className="student-main-label4">Unit
+                  <select className="student-main-input2" value={unit} onChange={(e) => setUnit(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                    <option value="4">4</option><option value="5">5</option>
+                  </select>
                 </div>
               </div>
-            ) : (
-              <p>No subjects found.</p>
-            )}
+              <div className="student-main-form-col2">
+                <div className="student-main-label3">Semester:
+                  <select className="student-main-input" value={semester} onChange={(e) => setSemester(e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="1st">1st Semester</option>
+                    <option value="2nd">2nd Semester</option>
+                    <option value="Summer">Summer</option>
+                  </select>
+                </div>
+                <div className="student-main-label2">School year:
+                  <input type="text" className="student-main-input" value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} />
+                </div>
+              </div>
+            </div>
+            <div className="student-main-reason-row">
+              <div className="student-main-reason-label">REASON: </div>
+              <textarea className="student-main-reason-textarea" value={reason} onChange={(e) => setReason(e.target.value)}></textarea>
+            </div>
           </div>
         </div>
 
-        {/* Professor Info & Concern */}
-        <div className="dashboard-card professor-card">
-          <div className="card-header">
-            <h3>Professor Info</h3>
-          </div>
-          <div className="card-content">
-            <div className="professor-details">
-              <p><strong>Name:</strong> Prof. Xavier</p>
-              <p><strong>Email:</strong> xavier@ub.edu.ph</p>
+        {/* Right */}
+        <div className="student-main-right">
+          <div className="student-profile-header">Profile</div>
+          <div className="student-profile-box">
+            <div className="student-profile-label">NAME:</div>
+            <span className="student-main-value">{studentData.name}</span>
+            <div className="student-profile-label">Student ID:</div>
+            <span className="student-main-value">{studentData.id}</span>
+            <div className="student-profile-task-header">TASK TO COMPLETE</div>
+            <div className="student-profile-label">Task / Activity:</div>
+            <input type="text" className="student-profile-input" placeholder="Enter task/activity" value={taskName} onChange={(e) => setTaskName(e.target.value)} />
+            <div className="student-profile-label">Description:
+              <input type="text" className="student-profile-input" value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
-            <div className="concern-form">
-              <label>Address Your Concern:</label>
-              <textarea
-                value={concern}
-                onChange={(e) => setConcern(e.target.value)}
-                placeholder="Enter your concern here..."
-              />
-              <button onClick={handleConcernSubmit}>Submit</button>
+            <div className="student-profile-label">Upload File:
+              <input
+  key={fileInputKey}
+  type="file"
+  className="student-profile-input"
+  onChange={(e) => setTaskFile(e.target.files[0])}
+/>
+            </div>
+            <div className="student-profile-buttons-row">
+              <button className="student-profile-btn" onClick={handleSubmit}>Submit</button>
+              <button className="student-profile-btn" onClick={handleCancel}>Cancel</button>
             </div>
           </div>
         </div>
       </div>
 
-      <footer className="dashboard-footer">
-        &copy; 2025 University of Batangas - Student Portal
-      </footer>
+      {/* Task Table */}
+      <div className="container mt-5">
+        <h3 className="mb-3">Task Summary</h3>
+        <table className="table table-striped table-bordered">
+          <thead className="table-dark">
+            <tr>
+              <th>Student ID</th>
+              <th>Subject Code</th>
+              <th>Subject Name</th>
+              <th>Semester</th>
+              <th>School Year</th>
+              <th>Task / Activity</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+<tbody>
+  {displayedTasks.length === 0 ? (
+    <tr><td colSpan="7" className="text-center">No tasks found.</td></tr>
+  ) : (
+    displayedTasks.map((task, index) => (
+      <tr key={index}>
+        <td>{studentData.id}</td>
+        <td>{task.subject_code}</td>
+        <td>{task.subject_name}</td>
+        <td>{task.semester}</td>
+        <td>{task.school_year}</td>
+        <td>{task.task_name}</td>
+        <td>{task.status}</td>
+      </tr>
+    ))
+  )}
+</tbody>
+        </table>
+      </div>
+
+      {/* Navigation */}
+      <div className="student-bottom-right-buttons d-flex align-items-center">
+  <button
+    className="student-nav-btn"
+    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 0))}
+    disabled={currentPage === 0}
+  >
+    &lt;
+  </button>
+
+  <span className="mx-3">
+    Page {currentPage + 1} of {totalPages}
+  </span>
+
+  <button
+    className="student-nav-btn"
+    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages - 1))}
+    disabled={currentPage >= totalPages - 1}
+  >
+    &gt;
+  </button>
+</div>
+
+      {/* Footer */}
+      <div className="student-footer">
+        © 2025 University of Batangas - Student Portal
+      </div>
     </div>
   );
 }
